@@ -1052,11 +1052,11 @@ void AxesProcess (dev_config_t * p_dev_config)
 						(p_dev_config->axis_config[i].button2 < 0 || p_dev_config->axis_config[i].button2_type != AXIS_BUTTON_PRESCALER_EN) &&
 						(p_dev_config->axis_config[i].button3 < 0 || p_dev_config->axis_config[i].button3_type != AXIS_BUTTON_PRESCALER_EN)) ||
 						// or defined and pressed
-						((p_dev_config->axis_config[i].button1 >=0 && axis_buttons[i][0].current_state && 
+						((p_dev_config->axis_config[i].button1 >=0 && axis_buttons[i][0].physical_state && 
 							p_dev_config->axis_config[i].button1_type == AXIS_BUTTON_PRESCALER_EN) ||
-						 (p_dev_config->axis_config[i].button2 >=0 && axis_buttons[i][1].current_state && 
+						 (p_dev_config->axis_config[i].button2 >=0 && axis_buttons[i][1].physical_state && 
 							p_dev_config->axis_config[i].button2_type == AXIS_BUTTON_PRESCALER_EN) ||
-						 (p_dev_config->axis_config[i].button3 >=0 && axis_buttons[i][2].current_state && 
+						 (p_dev_config->axis_config[i].button3 >=0 && axis_buttons[i][2].physical_state && 
 							p_dev_config->axis_config[i].button3_type == AXIS_BUTTON_PRESCALER_EN))
 				 )
 			{
@@ -1099,29 +1099,29 @@ void AxesProcess (dev_config_t * p_dev_config)
 			if (p_dev_config->axis_config[i].button3 >= 0 && 
 							 p_dev_config->axis_config[i].button3_type == AXIS_BUTTON_CENTER)	cent_button_num |= 1<<2;
 			
-			axis_buttons[i][0].prev_physical_state = axis_buttons[i][0].current_state;
-			axis_buttons[i][1].prev_physical_state = axis_buttons[i][1].current_state;
-			axis_buttons[i][2].prev_physical_state = axis_buttons[i][2].current_state;
+			axis_buttons[i][0].prev_physical_state = axis_buttons[i][0].physical_state;
+			axis_buttons[i][1].prev_physical_state = axis_buttons[i][1].physical_state;
+			axis_buttons[i][2].prev_physical_state = axis_buttons[i][2].physical_state;
 
 			// get new button's states
 			if (p_dev_config->axis_config[i].button1 >= 0)
 			{
-				axis_buttons[i][0].current_state = logical_buttons_state[p_dev_config->axis_config[i].button1].current_state;
+				axis_buttons[i][0].physical_state = logical_buttons_state[p_dev_config->axis_config[i].button1].physical_state;
 			}
 			if (p_dev_config->axis_config[i].button2 >= 0)
 			{
-				axis_buttons[i][1].current_state = logical_buttons_state[p_dev_config->axis_config[i].button2].current_state;
+				axis_buttons[i][1].physical_state = logical_buttons_state[p_dev_config->axis_config[i].button2].physical_state;
 			}
 			if (p_dev_config->axis_config[i].button3 >= 0)
 			{
-				axis_buttons[i][2].current_state = logical_buttons_state[p_dev_config->axis_config[i].button3].current_state;
+				axis_buttons[i][2].physical_state = logical_buttons_state[p_dev_config->axis_config[i].button3].physical_state;
 			}	
 			
 			// Trimming by buttons
 			if (inc_button_num > 0 || rst_button_num > 0 || dec_button_num > 0)
 			{
 				// increment
-				if ((inc_button_num & 0x01) && axis_buttons[i][0].current_state > axis_buttons[i][0].prev_physical_state)
+				if ((inc_button_num & 0x01) && axis_buttons[i][0].physical_state > axis_buttons[i][0].prev_physical_state)
 				{
 					axis_buttons[i][0].time_last = millis + 500;
 					axis_trim_value[i] +=  (AXIS_FULLSCALE)/p_dev_config->axis_config[i].divider;
@@ -1131,7 +1131,7 @@ void AxesProcess (dev_config_t * p_dev_config)
 					axis_buttons[i][0].time_last = millis;
 					axis_trim_value[i] += (AXIS_FULLSCALE)/p_dev_config->axis_config[i].divider;
 				}
-				else if ((inc_button_num & 0x04) && axis_buttons[i][2].current_state > axis_buttons[i][2].prev_physical_state)
+				else if ((inc_button_num & 0x04) && axis_buttons[i][2].physical_state > axis_buttons[i][2].prev_physical_state)
 				{
 					axis_buttons[i][2].time_last = millis + 500;
 					axis_trim_value[i] +=  (AXIS_FULLSCALE)/p_dev_config->axis_config[i].divider;
@@ -1143,7 +1143,7 @@ void AxesProcess (dev_config_t * p_dev_config)
 				}
 						
 				// decrement
-				if ((dec_button_num & 0x01) && axis_buttons[i][0].current_state > axis_buttons[i][0].prev_physical_state)
+				if ((dec_button_num & 0x01) && axis_buttons[i][0].physical_state > axis_buttons[i][0].prev_physical_state)
 				{
 					axis_buttons[i][0].time_last = millis + 500;
 					axis_trim_value[i] -=  (AXIS_FULLSCALE)/p_dev_config->axis_config[i].divider;
@@ -1153,7 +1153,7 @@ void AxesProcess (dev_config_t * p_dev_config)
 					axis_buttons[i][0].time_last = millis;
 					axis_trim_value[i] -= (AXIS_FULLSCALE)/p_dev_config->axis_config[i].divider;
 				}
-				else if ((dec_button_num & 0x04) && axis_buttons[i][2].current_state > axis_buttons[i][2].prev_physical_state)
+				else if ((dec_button_num & 0x04) && axis_buttons[i][2].physical_state > axis_buttons[i][2].prev_physical_state)
 				{
 					axis_buttons[i][2].time_last = millis + 500;
 					axis_trim_value[i] -=  (AXIS_FULLSCALE)/p_dev_config->axis_config[i].divider;
@@ -1165,15 +1165,15 @@ void AxesProcess (dev_config_t * p_dev_config)
 				}
 				
 				// reset
-				if ((rst_button_num & 0x01) && axis_buttons[i][0].current_state)
+				if ((rst_button_num & 0x01) && axis_buttons[i][0].physical_state)
 				{
 					axis_trim_value[i] = 0;
 				}
-				else if ((rst_button_num & 0x02) && axis_buttons[i][1].current_state)
+				else if ((rst_button_num & 0x02) && axis_buttons[i][1].physical_state)
 				{
 					axis_trim_value[i] = 0;
 				}
-				else if ((rst_button_num & 0x04) && axis_buttons[i][2].current_state)
+				else if ((rst_button_num & 0x04) && axis_buttons[i][2].physical_state)
 				{
 					axis_trim_value[i] = 0;
 				}	
@@ -1182,15 +1182,15 @@ void AxesProcess (dev_config_t * p_dev_config)
 			// Centering
 			if (cent_button_num > 0)
 			{
-				if ((cent_button_num & 0x01) && axis_buttons[i][0].current_state)
+				if ((cent_button_num & 0x01) && axis_buttons[i][0].physical_state)
 				{
 					axis_trim_value[i] = -tmp[i];
 				}
-				else if ((cent_button_num & 0x02) && axis_buttons[i][1].current_state)
+				else if ((cent_button_num & 0x02) && axis_buttons[i][1].physical_state)
 				{
 					axis_trim_value[i] = -tmp[i];
 				}
-				else if ((cent_button_num & 0x04) && axis_buttons[i][2].current_state)
+				else if ((cent_button_num & 0x04) && axis_buttons[i][2].physical_state)
 				{
 					axis_trim_value[i] = -tmp[i];
 				}
@@ -1218,9 +1218,9 @@ void AxesProcess (dev_config_t * p_dev_config)
 	{
 		
 		// check axis function activation 
-		if(((axis_buttons[i][0].current_state && p_dev_config->axis_config[i].button1_type == AXIS_BUTTON_FUNC_EN) ||
-			 (axis_buttons[i][1].current_state && p_dev_config->axis_config[i].button2_type == AXIS_BUTTON_FUNC_EN) ||
-		   (axis_buttons[i][2].current_state && p_dev_config->axis_config[i].button3_type == AXIS_BUTTON_FUNC_EN) ||
+		if(((axis_buttons[i][0].physical_state && p_dev_config->axis_config[i].button1_type == AXIS_BUTTON_FUNC_EN) ||
+			 (axis_buttons[i][1].physical_state && p_dev_config->axis_config[i].button2_type == AXIS_BUTTON_FUNC_EN) ||
+		   (axis_buttons[i][2].physical_state && p_dev_config->axis_config[i].button3_type == AXIS_BUTTON_FUNC_EN) ||
 		   (p_dev_config->axis_config[i].button1_type != AXIS_BUTTON_FUNC_EN && 
 				p_dev_config->axis_config[i].button2_type != AXIS_BUTTON_FUNC_EN && 
 				p_dev_config->axis_config[i].button3_type != AXIS_BUTTON_FUNC_EN)) && 

@@ -15,6 +15,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "common_types.h"
 
+#define PWR_OFF_DELAY_MS 2000
 
 static const dev_config_t init_config =
 {
@@ -22,24 +23,24 @@ static const dev_config_t init_config =
 	/* 
 		Name of device in devices dispatcher
 	*/
-	.device_name[0] =  'F',
+	.device_name[0] =  'B',
 	.device_name[1] =  'r',
 	.device_name[2] =  'e',
-	.device_name[3] =  'e',
-	.device_name[4] =  'J',
+	.device_name[3] =  'a',
+	.device_name[4] =  'k',
 	.device_name[5] =  'o',
-	.device_name[6] =  'y',
-	.device_name[7] =  ' ',
-	.device_name[8] =  'v',
-	.device_name[9] =  '1',
-	.device_name[10] = '.',
-	.device_name[11] = '7',
-	.device_name[12] = '.',
-	.device_name[13] = '1',
-	.device_name[14] = 0,
-	.device_name[15] = 0,
-	.device_name[16] = 0,
-	.device_name[17] = 0,
+	.device_name[6] =  'u',
+	.device_name[7] =  't',
+	.device_name[8] =  ' ',
+	.device_name[9] =  'v',
+	.device_name[10] = '1',
+	.device_name[11] = '.',
+	.device_name[12] = '0',
+	.device_name[13] = ' ',
+	.device_name[14] = 'I',
+	.device_name[15] = 'N',
+	.device_name[16] = 'I',
+	.device_name[17] = 'T',
 	.device_name[18] = 0,
 	.device_name[19] = 0,			
 	
@@ -70,32 +71,32 @@ static const dev_config_t init_config =
 	.pins[1] 	= AXIS_ANALOG,					// PA1
 	.pins[2] 	= AXIS_ANALOG,					// PA2
 	.pins[3] 	= AXIS_ANALOG,					// PA3
-	.pins[4] 	= NOT_USED,							// PA4
-	.pins[5] 	= NOT_USED,							// PA5
-	.pins[6] 	= NOT_USED,							// PA6
-	.pins[7] 	= NOT_USED,							// PA7
-	.pins[8] 	= NOT_USED,							// PA8
-	.pins[9] 	= NOT_USED,							// PA9
-	.pins[10] = NOT_USED,							// PA10
-	.pins[11] = NOT_USED,							// PA15
-	.pins[12] = NOT_USED,							// PB0
-	.pins[13] = NOT_USED,							// PB1
-	.pins[14] = NOT_USED,							// PB3
-	.pins[15] = NOT_USED,							// PB4
-	.pins[16] = NOT_USED,							// PB5
-	.pins[17] = NOT_USED,							// PB6
-	.pins[18] = NOT_USED,							// PB7
-	.pins[19] = NOT_USED,							// PB8
-	.pins[20] = NOT_USED,							// PB9
-	.pins[21] = NOT_USED,							// PB10
-	.pins[22] = NOT_USED,							// PB11
-	.pins[23] = BUTTON_GND,						// PB12
-	.pins[24] = BUTTON_GND,						// PB13
-	.pins[25] = BUTTON_GND,						// PB14
-	.pins[26] = BUTTON_GND,						// PB15
-	.pins[27] = NOT_USED,							// PC13
-	.pins[28] = NOT_USED,							// PC14
-	.pins[29] = NOT_USED,							// PC15
+	.pins[4] 	= AXIS_ANALOG,							// PA4
+	.pins[5] 	= AXIS_ANALOG,							// PA5
+	.pins[6] 	= AXIS_ANALOG,							// PA6
+	.pins[7] 	= AXIS_ANALOG,							// PA7
+	.pins[8] 	= BUTTON_VCC,							// PA8
+	.pins[9] 	= NOT_USED,							// PA9 - Spare pin
+	.pins[10] = NOT_USED,							// PA10 - MCU_SWITCH to keep power on
+	.pins[11] = BUTTON_VCC,							// PA15
+	.pins[12] = BUTTON_GND,							// PB0
+	.pins[13] = BUTTON_VCC,							// PB1
+	.pins[14] = BUTTON_VCC,							// PB3
+	.pins[15] = BUTTON_VCC,							// PB4
+	.pins[16] = BUTTON_VCC,							// PB5
+	.pins[17] = BUTTON_VCC,							// PB6
+	.pins[18] = BUTTON_VCC,							// PB7
+	.pins[19] = BUTTON_VCC,							// PB8
+	.pins[20] = BUTTON_VCC,							// PB9
+	.pins[21] = I2C_SCL,							// PB10 - I2C SCL
+	.pins[22] = I2C_SDA,							// PB11 - I2C SDA
+	.pins[23] = BUTTON_VCC,						// PB12
+	.pins[24] = BUTTON_VCC,						// PB13
+	.pins[25] = BUTTON_VCC,						// PB14
+	.pins[26] = BUTTON_VCC,						// PB15
+	.pins[27] = BUTTON_VCC,							// PC13
+	.pins[28] = BUTTON_VCC,							// PC14
+	.pins[29] = BUTTON_VCC,							// PC15
 	
 	/*
 		Configuration of analog axis
@@ -402,45 +403,45 @@ static const dev_config_t init_config =
 		- ENCODER_INPUT_A
 		- ENCODER_INPUT_B
 	*/
-	.buttons[0].physical_num = 12,
+	.buttons[0].physical_num = 1,
 	.buttons[0].type = BUTTON_NORMAL,
-	.buttons[1].physical_num = 13,
+	.buttons[1].physical_num = 2,
 	.buttons[1].type = BUTTON_NORMAL,
-	.buttons[2].physical_num = 14,
+	.buttons[2].physical_num = 3,
 	.buttons[2].type = BUTTON_NORMAL,
-	.buttons[3].physical_num = 15,
+	.buttons[3].physical_num = 4,
 	.buttons[3].type = BUTTON_NORMAL,
-	.buttons[4].physical_num = -1,
+	.buttons[4].physical_num = 5,
 	.buttons[4].type = BUTTON_NORMAL,
-	.buttons[5].physical_num = -1,
+	.buttons[5].physical_num = 6,
 	.buttons[5].type = BUTTON_NORMAL,
-	.buttons[6].physical_num = -1,
+	.buttons[6].physical_num = 7,
 	.buttons[6].type = BUTTON_NORMAL,
-	.buttons[7].physical_num = -1,
+	.buttons[7].physical_num = 8,
 	.buttons[7].type = BUTTON_NORMAL,
-	.buttons[8].physical_num = -1,
+	.buttons[8].physical_num = 9,
 	.buttons[8].type = BUTTON_NORMAL,
-	.buttons[9].physical_num = -1,
+	.buttons[9].physical_num = 10,
 	.buttons[9].type = BUTTON_NORMAL,
-	.buttons[10].physical_num = -1,
+	.buttons[10].physical_num = 11,
 	.buttons[10].type = BUTTON_NORMAL,
-	.buttons[11].physical_num = -1,
+	.buttons[11].physical_num = 12,
 	.buttons[11].type = BUTTON_NORMAL,
-	.buttons[12].physical_num = -1,
+	.buttons[12].physical_num = 13,
 	.buttons[12].type = BUTTON_NORMAL,
-	.buttons[13].physical_num = -1,
+	.buttons[13].physical_num = 14,
 	.buttons[13].type = BUTTON_NORMAL,
-	.buttons[14].physical_num = -1,
+	.buttons[14].physical_num = 15,
 	.buttons[14].type = BUTTON_NORMAL,
-	.buttons[15].physical_num = -1,
+	.buttons[15].physical_num = 16,
 	.buttons[15].type = BUTTON_NORMAL,
-	.buttons[16].physical_num = -1,
+	.buttons[16].physical_num = 17,
 	.buttons[16].type = BUTTON_NORMAL,
-	.buttons[17].physical_num = -1,
+	.buttons[17].physical_num = 18,
 	.buttons[17].type = BUTTON_NORMAL,
-	.buttons[18].physical_num = -1,
+	.buttons[18].physical_num = 19,
 	.buttons[18].type = BUTTON_NORMAL,
-	.buttons[19].physical_num = -1,
+	.buttons[19].physical_num = 20,
 	.buttons[19].type = BUTTON_NORMAL,
 	.buttons[20].physical_num = -1,
 	.buttons[20].type = BUTTON_NORMAL,

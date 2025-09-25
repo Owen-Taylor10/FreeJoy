@@ -50,43 +50,136 @@ void ButtonsDebounceProcess (dev_config_t * p_dev_config)
 	
 	millis = GetMillis();
 	
-	for (uint8_t i=0; i<MAX_BUTTONS_NUM; i++)
+	for (uint8_t i=0; i<MAX_BUTTONS_NUM; i++) // Set to 1 to skip power button
 	{
-			// set a2b debounce
-			if (a2b_first != a2b_last && i > a2b_first && i <= a2b_last)
-			{
-				debounce = p_dev_config->a2b_debounce_ms;
-			}
-			else 
-			{
-				debounce = p_dev_config->button_debounce_ms;
-			}
-		
-			physical_buttons_state[i].prev_pin_state = physical_buttons_state[i].pin_state;
-			physical_buttons_state[i].pin_state = raw_buttons_data[i];
-		
-			// set timestamp if state changed
-			if (!physical_buttons_state[i].changed && physical_buttons_state[i].pin_state != physical_buttons_state[i].prev_pin_state)		
-			{
-				physical_buttons_state[i].time_last = millis;
-				physical_buttons_state[i].changed = 1;
-			}
-			// set state after debounce if state have not changed
-			else if (	physical_buttons_state[i].changed && physical_buttons_state[i].pin_state == physical_buttons_state[i].prev_pin_state &&
-								millis - physical_buttons_state[i].time_last > debounce)
-			{
+		if(i == POWER_BUTTON) continue; // skip power button
+		// set a2b debounce
+		if (a2b_first != a2b_last && i > a2b_first && i <= a2b_last)
+		{
+			debounce = p_dev_config->a2b_debounce_ms;
+		}
+		else 
+		{
+			debounce = p_dev_config->button_debounce_ms;
+		}
+	
+		physical_buttons_state[i].prev_pin_state = physical_buttons_state[i].pin_state;
+		physical_buttons_state[i].pin_state = raw_buttons_data[i];
+	
+		// set timestamp if state changed
+		if (!physical_buttons_state[i].changed && 
+			physical_buttons_state[i].pin_state != physical_buttons_state[i].prev_pin_state)		
+		{
+			physical_buttons_state[i].time_last = millis;
+			physical_buttons_state[i].changed = 1;
+		}
+		// set state after debounce if state have not changed
+		else if (	physical_buttons_state[i].changed && 
+					physical_buttons_state[i].pin_state == physical_buttons_state[i].prev_pin_state &&
+					millis - physical_buttons_state[i].time_last > debounce)
+		{
 
-				physical_buttons_state[i].changed = 0;
-				physical_buttons_state[i].current_state = physical_buttons_state[i].pin_state;
-				//physical_buttons_state[i].cnt++;
-			}
-			// reset if state changed during debounce period
-			else if (physical_buttons_state[i].changed &&
-								millis - physical_buttons_state[i].time_last > debounce)
-			{
-				physical_buttons_state[i].changed = 0;
-			}
+			physical_buttons_state[i].changed = 0;
+			physical_buttons_state[i].physical_state = physical_buttons_state[i].pin_state;
+			//physical_buttons_state[i].cnt++;
+		}
+		// reset if state changed during debounce period
+		else if (physical_buttons_state[i].changed &&
+							millis - physical_buttons_state[i].time_last > debounce)
+		{
+			physical_buttons_state[i].changed = 0;
+		}
 	}
+}
+
+power_button_event_t ButtonsDebounceProcessPowerBtn(dev_config_t* p_dev_config)
+{
+	int64_t millis_now = GetMillis();
+	power_button_event_t event = PWR_BTN_EVENT_NONE;
+
+	physical_buttons_state_t* btn = &physical_buttons_state[POWER_BUTTON];
+	uint8_t raw_state = raw_buttons_data[POWER_BUTTON];
+
+	// Detect state change (press/release)
+	if (raw_state != btn->pin_state) 
+	{
+		btn->prev_pin_state = btn->pin_state;
+		btn->pin_state = raw_state;
+		btn->time_last = millis_now;
+		btn->changed = 1;
+	}
+
+	// If state is stable past debounce time
+	if (btn->changed && (millis_now - btn->time_last >= PWR_LONG_PRESS_MS)) 
+	{
+		btn->changed = 0;
+		btn->physical_state = btn->pin_state;
+
+		// If button is still pressed after debounce window -> long press
+		if (btn->physical_state) event = PWR_BTN_EVENT_LONG_PRESS;
+	}
+
+	return event;
+
+	/* If we want to detect after a certain time without worrying about when button is released.
+	* power_button_event_t ButtonsDebounceProcessPowerBtn(dev_config_t* p_dev_config)
+{
+    int64_t now = GetMillis();
+    power_button_event_t event = PWR_BTN_EVENT_NONE;
+
+    button_state_t *btn = &physical_buttons_state[POWER_BUTTON];
+    uint8_t raw_state = raw_buttons_data[POWER_BUTTON];
+
+    // Detect pin state change (press or release)
+    if (raw_state != btn->pin_state) {
+        btn->prev_pin_state = btn->pin_state;
+        btn->pin_state = raw_state;
+        btn->time_last = now;
+        btn->changed = 1;
+    }
+
+    // Handle debounce
+    if (btn->changed && (now - btn->time_last >= PWR_DEBOUNCE_MS)) {
+        btn->changed = 0;
+        btn->physical_state = btn->pin_state;
+
+        // Button pressed down
+        if (btn->physical_state) {
+            btn->press_start = now;   // Record time of press
+            btn->long_event_fired = 0; // Reset long press flag
+        }
+        // Button released
+        else {
+            int64_t press_duration = now - btn->press_start;
+
+            if (!btn->long_event_fired) {
+                if (press_duration >= PWR_SHORT_PRESS_MS) {
+                    event = PWR_BTN_EVENT_SHORT_PRESS;
+                }
+            }
+        }
+    }
+
+    // If button is still held down ? check for thresholds
+    if (btn->physical_state) {
+        int64_t held_time = now - btn->press_start;
+
+        // Fire short press event if held beyond short threshold (once)
+        if (!btn->short_event_fired && held_time >= PWR_SHORT_PRESS_MS) {
+            event = PWR_BTN_EVENT_SHORT_PRESS;
+            btn->short_event_fired = 1;
+        }
+
+        // Fire long press event if held beyond long threshold (once)
+        if (!btn->long_event_fired && held_time >= PWR_LONG_PRESS_MS) {
+            event = PWR_BTN_EVENT_LONG_PRESS;
+            btn->long_event_fired = 1;
+        }
+    }
+
+    return event;
+}
+	*/
 }
 
 static void LogicalButtonProcessTimer (logical_buttons_state_t * p_button_state, int32_t millis, dev_config_t * p_dev_config, uint8_t num)
@@ -188,7 +281,7 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 	LogicalButtonProcessTimer(p_button_state, millis, p_dev_config, num);
 	
 		switch (p_dev_config->buttons[num].type)
-		{				
+		{			
 			case BUTTON_NORMAL:
 			case POV1_CENTER:
 			case POV2_CENTER:
@@ -198,7 +291,7 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 				}
 				else if (p_button_state->delay_act == BUTTON_ACTION_PRESS)
 				{
-					p_button_state->current_state = p_button_state->on_state;
+					p_button_state->physical_state = p_button_state->on_state;
 				}
 				else if (p_button_state->curr_physical_state > p_button_state->prev_physical_state && 
 								p_button_state->delay_act != BUTTON_ACTION_BLOCK)		// triggered in IDLE
@@ -210,11 +303,11 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 				}
 				else if (p_button_state->delay_act == BUTTON_ACTION_BLOCK)
 				{
-					p_button_state->current_state = 0;
+					p_button_state->physical_state = 0;
 				}
 				else	// IDLE state
 				{
-					p_button_state->current_state = p_button_state->curr_physical_state;
+					p_button_state->physical_state = p_button_state->curr_physical_state;
 				}
 				break;
 				
@@ -225,13 +318,13 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 				}
 				else if (p_button_state->delay_act == BUTTON_ACTION_PRESS)
 				{
-					p_button_state->current_state = p_button_state->on_state;
+					p_button_state->physical_state = p_button_state->on_state;
 				}
 				else if (p_button_state->curr_physical_state > p_button_state->prev_physical_state)		// triggered in IDLE
 				{
 					p_button_state->delay_act = BUTTON_ACTION_DELAY;
 					p_button_state->time_last = millis;
-					p_button_state->on_state = !p_button_state->current_state;
+					p_button_state->on_state = !p_button_state->physical_state;
 					p_button_state->off_state = p_button_state->on_state;
 				}
 				else	// IDLE state
@@ -247,7 +340,7 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 				}
 				else if (p_button_state->delay_act == BUTTON_ACTION_PRESS)
 				{
-					p_button_state->current_state = p_button_state->on_state;
+					p_button_state->physical_state = p_button_state->on_state;
 				}
 				else if (p_button_state->curr_physical_state != p_button_state->prev_physical_state)		// triggered in IDLE
 				{
@@ -258,7 +351,7 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 				}
 				else	// IDLE state
 				{
-					p_button_state->current_state = p_button_state->off_state;
+					p_button_state->physical_state = p_button_state->off_state;
 				}
 				break;
 				
@@ -269,7 +362,7 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 				}
 				else if (p_button_state->delay_act == BUTTON_ACTION_PRESS)
 				{
-					p_button_state->current_state = p_button_state->on_state;
+					p_button_state->physical_state = p_button_state->on_state;
 				}
 				else if (p_button_state->curr_physical_state > p_button_state->prev_physical_state)		// triggered in IDLE
 				{
@@ -280,7 +373,7 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 				}
 				else	// IDLE state
 				{
-					p_button_state->current_state = p_button_state->off_state;
+					p_button_state->physical_state = p_button_state->off_state;
 				}
 				break;
 			 
@@ -291,7 +384,7 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 				}
 				else if (p_button_state->delay_act == BUTTON_ACTION_PRESS)
 				{
-					p_button_state->current_state = p_button_state->on_state;
+					p_button_state->physical_state = p_button_state->on_state;
 				}
 				else if (p_button_state->curr_physical_state < p_button_state->prev_physical_state)		// triggered in IDLE
 				{
@@ -302,7 +395,7 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 				}
 				else	// IDLE state
 				{
-					p_button_state->current_state = p_button_state->off_state;
+					p_button_state->physical_state = p_button_state->off_state;
 				}
 				break;
 				
@@ -340,7 +433,7 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 							if (p_dev_config->buttons[i].type == POV1_CENTER)	
 							{
 								logical_buttons_state[i].delay_act = BUTTON_ACTION_BLOCK;
-								logical_buttons_state[i].current_state = 0;
+								logical_buttons_state[i].physical_state = 0;
 								logical_buttons_state[i].time_last = millis;		 
 							}
 						}
@@ -352,7 +445,7 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 							if (p_dev_config->buttons[i].type == POV2_CENTER)	
 							{
 								logical_buttons_state[i].delay_act = BUTTON_ACTION_BLOCK;
-								logical_buttons_state[i].current_state = 0;
+								logical_buttons_state[i].physical_state = 0;
 								logical_buttons_state[i].time_last = millis;		 
 							}
 						}
@@ -365,7 +458,7 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 				}
 				else if (p_button_state->delay_act == BUTTON_ACTION_PRESS)
 				{
-					p_button_state->current_state = p_button_state->on_state;
+					p_button_state->physical_state = p_button_state->on_state;
 				}
 				else if (p_button_state->curr_physical_state > p_button_state->prev_physical_state)		// triggered in IDLE
 				{
@@ -376,7 +469,7 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 				}
 				else	// IDLE state
 				{
-					p_button_state->current_state = p_button_state->curr_physical_state;
+					p_button_state->physical_state = p_button_state->curr_physical_state;
 				}
 					
 				// set bit in povs data
@@ -384,24 +477,24 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 						p_dev_config->buttons[num].type == POV3_UP || p_dev_config->buttons[num].type == POV4_UP)
 				{
 					pov_buf[pov_group] &= ~(1 << 3);
-					pov_buf[pov_group] |= (p_button_state->current_state << 3);
+					pov_buf[pov_group] |= (p_button_state->physical_state << 3);
 				}
 				else if (p_dev_config->buttons[num].type == POV1_RIGHT || p_dev_config->buttons[num].type == POV2_RIGHT ||
 								 p_dev_config->buttons[num].type == POV3_RIGHT || p_dev_config->buttons[num].type == POV4_RIGHT)
 				{
 					pov_buf[pov_group] &= ~(1 << 2);
-					pov_buf[pov_group] |= (p_button_state->current_state << 2);
+					pov_buf[pov_group] |= (p_button_state->physical_state << 2);
 				}
 				else if (p_dev_config->buttons[num].type == POV1_DOWN || p_dev_config->buttons[num].type == POV2_DOWN ||
 								 p_dev_config->buttons[num].type == POV3_DOWN || p_dev_config->buttons[num].type == POV4_DOWN)
 				{
 					pov_buf[pov_group] &= ~(1 << 1);
-					pov_buf[pov_group] |= (p_button_state->current_state << 1);
+					pov_buf[pov_group] |= (p_button_state->physical_state << 1);
 				}
 				else
 				{
 					pov_buf[pov_group] &= ~(1 << 0);
-					pov_buf[pov_group] |= (p_button_state->current_state << 0);
+					pov_buf[pov_group] |= (p_button_state->physical_state << 0);
 				}
 				
 				// turn off POV center button if one of directions is pressed
@@ -414,7 +507,7 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 							if (p_dev_config->buttons[i].type == POV1_CENTER)	
 							{
 								logical_buttons_state[i].delay_act = BUTTON_ACTION_BLOCK;
-								logical_buttons_state[i].current_state = 0;
+								logical_buttons_state[i].physical_state = 0;
 								logical_buttons_state[i].time_last = millis;		 
 							}
 						}
@@ -426,7 +519,7 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 							if (p_dev_config->buttons[i].type == POV2_CENTER)	
 							{
 								logical_buttons_state[i].delay_act = BUTTON_ACTION_BLOCK;
-								logical_buttons_state[i].current_state = 0;
+								logical_buttons_state[i].physical_state = 0;
 								logical_buttons_state[i].time_last = millis;	 
 							}
 						}
@@ -445,13 +538,13 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 				}
 				else if (p_button_state->delay_act == BUTTON_ACTION_PRESS)
 				{
-					p_button_state->current_state = p_button_state->on_state;
+					p_button_state->physical_state = p_button_state->on_state;
 					
 					for (uint8_t i=0; i<MAX_BUTTONS_NUM; i++)
 					{
 						if (p_dev_config->buttons[i].type == p_dev_config->buttons[num].type && i != num)
 						{
-							logical_buttons_state[i].current_state = logical_buttons_state[i].off_state;
+							logical_buttons_state[i].physical_state = logical_buttons_state[i].off_state;
 						}
 					}
 				}
@@ -475,7 +568,7 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 				}
 				else if (p_button_state->delay_act == BUTTON_ACTION_PRESS)
 				{
-					p_button_state->current_state = p_button_state->on_state;
+					p_button_state->physical_state = p_button_state->on_state;
 				}
 				else if (p_button_state->curr_physical_state > p_button_state->prev_physical_state)		// triggered in IDLE
 				{
@@ -493,7 +586,7 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 							{
 								logical_buttons_state[i].on_state = 0;
 								logical_buttons_state[i].off_state = 0;
-								logical_buttons_state[i].current_state = 0;
+								logical_buttons_state[i].physical_state = 0;
 								is_set_found = 1;
 							}
 							else if (is_set_found)	// enable next button in list
@@ -543,7 +636,7 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 				}
 				else if (p_button_state->delay_act == BUTTON_ACTION_PRESS)
 				{
-					p_button_state->current_state = p_button_state->on_state;
+					p_button_state->physical_state = p_button_state->on_state;
 				}
 				else if (p_button_state->curr_physical_state > p_button_state->prev_physical_state)		// triggered in IDLE
 				{
@@ -598,7 +691,7 @@ void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_
 				}
 				else if (!p_button_state->curr_physical_state)	// IDLE state
 				{
-					p_button_state->current_state = p_button_state->off_state;
+					p_button_state->physical_state = p_button_state->off_state;
 				}			
 				break;
 				
@@ -622,7 +715,7 @@ void RadioButtons_Init (dev_config_t * p_dev_config)
 			{			
 				logical_buttons_state[j].on_state = 1;
 				logical_buttons_state[j].off_state = 0;
-				logical_buttons_state[j].current_state = logical_buttons_state[j].on_state;
+				logical_buttons_state[j].physical_state = logical_buttons_state[j].on_state;
 				break;
 			}
 		}
@@ -645,7 +738,7 @@ void SequentialButtons_Init (dev_config_t * p_dev_config)
 					p_dev_config->buttons[i].physical_num == physical_num)
 			{
 				logical_buttons_state[i].on_state = 1;
-				logical_buttons_state[i].current_state = 1;
+				logical_buttons_state[i].physical_state = 1;
 				break;
 			}
 		}
@@ -674,7 +767,7 @@ void SequentialButtons_Init (dev_config_t * p_dev_config)
 					p_dev_config->buttons[i].physical_num != physical_num)
 			{
 				logical_buttons_state[i].on_state = 1;
-				//buttons_state[i].current_state = 1;
+				//buttons_state[i].physical_state = 1;
 				//buttons_state[i].prev_state = 1;
 				break;
 			}
@@ -801,17 +894,17 @@ void ButtonsReadLogical (dev_config_t * p_dev_config)
 					if (shifts_state & 1<<(shift_num-1))											// shift pressed for this button
 					{
 						logical_buttons_state[j].prev_physical_state = logical_buttons_state[j].curr_physical_state;
-						logical_buttons_state[j].curr_physical_state = physical_buttons_state[p_dev_config->buttons[j].physical_num].current_state;
+						logical_buttons_state[j].curr_physical_state = physical_buttons_state[p_dev_config->buttons[j].physical_num].physical_state;
 						
 						LogicalButtonProcessState(&logical_buttons_state[j], pov_pos, p_dev_config, j);
 					}
-					else if (logical_buttons_state[j].current_state)	// shift released for this button
+					else if (logical_buttons_state[j].physical_state)	// shift released for this button
 					{
 						// disable button
 						logical_buttons_state[j].delay_act = BUTTON_ACTION_IDLE;
 						logical_buttons_state[j].on_state = 0;
 						logical_buttons_state[j].off_state = 0;
-						logical_buttons_state[j].current_state = 0;
+						logical_buttons_state[j].physical_state = 0;
 						logical_buttons_state[j].curr_physical_state = 0;
 						logical_buttons_state[j].time_last = 0;			
 						LogicalButtonProcessState(&logical_buttons_state[j], pov_pos, p_dev_config, j);
@@ -827,7 +920,7 @@ void ButtonsReadLogical (dev_config_t * p_dev_config)
 				if (p_dev_config->buttons[j].physical_num == i)		// we found corresponding logical button
 				{
 					logical_buttons_state[j].prev_physical_state = logical_buttons_state[j].curr_physical_state;
-					logical_buttons_state[j].curr_physical_state = physical_buttons_state[p_dev_config->buttons[j].physical_num].current_state;		
+					logical_buttons_state[j].curr_physical_state = physical_buttons_state[p_dev_config->buttons[j].physical_num].physical_state;		
 					
 					LogicalButtonProcessState(&logical_buttons_state[j], pov_pos, p_dev_config, j);
 				}
@@ -841,7 +934,7 @@ void ButtonsReadLogical (dev_config_t * p_dev_config)
 					(p_dev_config->buttons[j].shift_modificator) == 0)
 				{
 					logical_buttons_state[j].prev_physical_state = logical_buttons_state[j].curr_physical_state;
-					logical_buttons_state[j].curr_physical_state = physical_buttons_state[p_dev_config->buttons[j].physical_num].current_state;
+					logical_buttons_state[j].curr_physical_state = physical_buttons_state[p_dev_config->buttons[j].physical_num].physical_state;
 					
 					LogicalButtonProcessState(&logical_buttons_state[j], pov_pos, p_dev_config, j);
 				}
@@ -850,12 +943,12 @@ void ButtonsReadLogical (dev_config_t * p_dev_config)
 					(p_dev_config->buttons[j].shift_modificator) == 0)
 				{
 					// disable button
-					if (logical_buttons_state[j].current_state)	
+					if (logical_buttons_state[j].physical_state)	
 					{
 						logical_buttons_state[j].delay_act = BUTTON_ACTION_IDLE;
 						logical_buttons_state[j].on_state = 0;
 						logical_buttons_state[j].off_state = 0;
-						logical_buttons_state[j].current_state = 0;
+						logical_buttons_state[j].physical_state = 0;
 						logical_buttons_state[j].curr_physical_state = 0;
 						logical_buttons_state[j].time_last = 0;
 						LogicalButtonProcessState(&logical_buttons_state[j], pov_pos, p_dev_config, j);
@@ -865,12 +958,12 @@ void ButtonsReadLogical (dev_config_t * p_dev_config)
 					(p_dev_config->buttons[j].shift_modificator) == 0)
 				{
 					// disable button
-					if (logical_buttons_state[j].current_state)	
+					if (logical_buttons_state[j].physical_state)	
 					{
 						logical_buttons_state[j].delay_act = BUTTON_ACTION_IDLE;
 						logical_buttons_state[j].on_state = 0;
 						logical_buttons_state[j].off_state = 0;
-						logical_buttons_state[j].current_state = 0;	
+						logical_buttons_state[j].physical_state = 0;	
 						logical_buttons_state[j].curr_physical_state = 0;
 						logical_buttons_state[j].time_last = 0;						
 						LogicalButtonProcessState(&logical_buttons_state[j], pov_pos, p_dev_config, j);
@@ -880,12 +973,12 @@ void ButtonsReadLogical (dev_config_t * p_dev_config)
 					(p_dev_config->buttons[j].shift_modificator) == 0)
 				{
 					// disable button
-					if (logical_buttons_state[j].current_state)	
+					if (logical_buttons_state[j].physical_state)	
 					{
 						logical_buttons_state[j].delay_act = BUTTON_ACTION_IDLE;
 						logical_buttons_state[j].on_state = 0;
 						logical_buttons_state[j].off_state = 0;
-						logical_buttons_state[j].current_state = 0;	
+						logical_buttons_state[j].physical_state = 0;	
 						logical_buttons_state[j].curr_physical_state = 0;						
 						logical_buttons_state[j].time_last = 0;						
 						LogicalButtonProcessState(&logical_buttons_state[j], pov_pos, p_dev_config, j);
@@ -895,12 +988,12 @@ void ButtonsReadLogical (dev_config_t * p_dev_config)
 					(p_dev_config->buttons[j].shift_modificator) == 0)
 				{
 					// disable button
-					if (logical_buttons_state[j].current_state)	
+					if (logical_buttons_state[j].physical_state)	
 					{
 						logical_buttons_state[j].delay_act = BUTTON_ACTION_IDLE;
 						logical_buttons_state[j].on_state = 0;
 						logical_buttons_state[j].off_state = 0;
-						logical_buttons_state[j].current_state = 0;
+						logical_buttons_state[j].physical_state = 0;
 						logical_buttons_state[j].curr_physical_state = 0;
 						logical_buttons_state[j].time_last = 0;									
 						LogicalButtonProcessState(&logical_buttons_state[j], pov_pos, p_dev_config, j);
@@ -910,12 +1003,12 @@ void ButtonsReadLogical (dev_config_t * p_dev_config)
 					(p_dev_config->buttons[j].shift_modificator) == 0)
 				{
 					// disable button
-					if (logical_buttons_state[j].current_state)	
+					if (logical_buttons_state[j].physical_state)	
 					{
 						logical_buttons_state[j].delay_act = BUTTON_ACTION_IDLE;
 						logical_buttons_state[j].on_state = 0;
 						logical_buttons_state[j].off_state = 0;
-						logical_buttons_state[j].current_state = 0;
+						logical_buttons_state[j].physical_state = 0;
 						logical_buttons_state[j].curr_physical_state = 0;
 						logical_buttons_state[j].time_last = 0;									
 						LogicalButtonProcessState(&logical_buttons_state[j], pov_pos, p_dev_config, j);
@@ -930,7 +1023,7 @@ void ButtonsReadLogical (dev_config_t * p_dev_config)
 	{
 		if (p_dev_config->shift_config[i].button >= 0)
 		{				
-			shifts_state |= (logical_buttons_state[p_dev_config->shift_config[i].button].current_state << i);
+			shifts_state |= (logical_buttons_state[p_dev_config->shift_config[i].button].physical_state << i);
 		}
 	}
 	
@@ -953,25 +1046,25 @@ void ButtonsReadLogical (dev_config_t * p_dev_config)
 				//out_buttons_data[(k & 0xF8)>>3] &= ~(1 << (k & 0x07));
 				if (!p_dev_config->buttons[i].is_inverted)
 				{					
-					out_buttons_data[(k & 0xF8)>>3] |= (logical_buttons_state[i].current_state << (k & 0x07));
+					out_buttons_data[(k & 0xF8)>>3] |= (logical_buttons_state[i].physical_state << (k & 0x07));
 				}
 				else
 				{
-					out_buttons_data[(k & 0xF8)>>3] |= (!logical_buttons_state[i].current_state << (k & 0x07));
+					out_buttons_data[(k & 0xF8)>>3] |= (!logical_buttons_state[i].physical_state << (k & 0x07));
 				}
 				k++;				
 			}
 			// logical buttons
 			if (!p_dev_config->buttons[i].is_inverted)
 			{
-				log_buttons_data[(i & 0xF8)>>3] |= (logical_buttons_state[i].current_state << (i & 0x07));
+				log_buttons_data[(i & 0xF8)>>3] |= (logical_buttons_state[i].physical_state << (i & 0x07));
 			}
 			else
 			{
-				log_buttons_data[(i & 0xF8)>>3] |= (!logical_buttons_state[i].current_state << (i & 0x07));
+				log_buttons_data[(i & 0xF8)>>3] |= (!logical_buttons_state[i].physical_state << (i & 0x07));
 			}
 			// physical buttons
-			phy_buttons_data[(i & 0xF8)>>3] |= (physical_buttons_state[i].current_state << (i & 0x07));			
+			phy_buttons_data[(i & 0xF8)>>3] |= (physical_buttons_state[i].physical_state << (i & 0x07));			
 	}
 	
 	// buttons read is allowed

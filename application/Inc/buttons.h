@@ -13,6 +13,10 @@
 #include "periphery.h"
 #include "shift_registers.h"
 #include "axis_to_buttons.h"
+#include <stdint.h>
+
+#define POWER_BUTTON 2 // PB0 mapped as button index 2
+#define PWR_LONG_PRESS_MS 3000 // Long press time 
 
 extern uint8_t									raw_buttons_data[MAX_BUTTONS_NUM];
 extern logical_buttons_state_t 	logical_buttons_state[MAX_BUTTONS_NUM];
@@ -23,7 +27,13 @@ extern uint8_t									shifts_state;
 typedef uint8_t button_data_t;
 typedef uint8_t pov_data_t;
 
+typedef enum {
+	PWR_BTN_EVENT_NONE,
+	PWR_BTN_EVENT_LONG_PRESS
+} power_button_event_t;
+
 void ButtonsDebounceProcess(dev_config_t * p_dev_config);
+power_button_event_t ButtonsDebounceProcessPowerBtn (dev_config_t * p_dev_config);
 void LogicalButtonProcessState (logical_buttons_state_t * p_button_state, uint8_t * pov_buf, dev_config_t * p_dev_config, uint8_t pos);
 void RadioButtons_Init (dev_config_t * p_dev_config);
 void SequentialButtons_Init (dev_config_t * p_dev_config);

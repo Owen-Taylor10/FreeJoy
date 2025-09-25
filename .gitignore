@@ -63,3 +63,8 @@ DebugConfig
 MDK-ARM/FreeJoy.bin
 *.uvoptx
 *.uvprojx
+
+
+#VS Files
+.vs
+.vscode

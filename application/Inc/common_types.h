@@ -214,7 +214,7 @@ enum
 	RADIO_BUTTON4,
 	
 	SEQUENTIAL_TOGGLE,
-	SEQUENTIAL_BUTTON,	
+	SEQUENTIAL_BUTTON,
 };
 typedef uint8_t button_type_t;
 
@@ -243,10 +243,11 @@ typedef struct button_t
 
 typedef struct physical_buttons_state_t
 {
-  uint32_t time_last;	
+	uint32_t time_last;	
 	uint8_t pin_state						:1;
 	uint8_t prev_pin_state			:1;
-	uint8_t current_state				:1;
+	uint8_t physical_state				:1;
+	//uint8_t current_state				:1;
 	uint8_t changed							:1;
 	
 } //.
@@ -269,7 +270,7 @@ typedef struct logical_buttons_state_t
 	uint8_t prev_physical_state		:1;	
 	uint8_t on_state 							:1;	
 	uint8_t off_state 						:1;	
-	uint8_t current_state					:1;	
+	uint8_t physical_state					:1;	
 	uint8_t delay_act 						:2;	
 	
 } logical_buttons_state_t;
