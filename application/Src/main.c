@@ -53,6 +53,7 @@ static void LED_On(void);
 void PowerControlPin_Init(void);
 static inline void Power_LatchOn(void);
 static inline void Power_Release(void);
+void USB_OrientationDetect_Init(void);
 
 /**
   * @brief  The application entry point.
@@ -103,6 +104,7 @@ int main(void)
 
 	Delay_ms(100);
 
+	USB_OrientationDetect_Init();
 	PowerControlPin_Init();
 	Power_LatchOn();
 	uint16_t powerOffDelayCounter = 0;
@@ -131,7 +133,7 @@ int main(void)
 		if (timer <= 0)
 		{
 			LED_Toggle();
-			timer = (PWR_OFF_DELAY_MS / 6);
+			timer = (PWR_OFF_DELAY_MS / 4);
 		}
 		timer--;
 #endif // DEBUG
@@ -233,22 +235,46 @@ static void LED_On(void)
 }
 #endif // DEBUG
 
-inline void USB_OrientationDetect(void)
+void USB_OrientationDetect_Init(void)
 {
 	/* PC0 pin for detecting usb c orientation. Not sure on functionality yet but it should either set or reset PC1 - DX_SEL
 
 	Configure PC0 as input with pull-down since connected to Rp on CC line
 	Configure PC1 as output push-pull
-
-	if PC0 is low (connected to GND) then set PC1 high (DX_SEL = 1)
-	if PC0 is high (connected to VBUS) then set PC1 low (DX_SEL = 0)
 	*/
 
 	SET_BIT(RCC->APB2ENR, RCC_APB2ENR_IOPCEN); // Enable GPIOC clock
 
 	GPIOC->CRL &= ~(GPIO_CRL_MODE0 | GPIO_CRL_CNF0);    /* Clear MODE0 and CNF0 fields */
+	GPIOC->CRL |= GPIO_CRL_CNF0_1; // Set MODE0 to 0 as an input (already done above) and CNFy to 10 (input with pull-up/pull-down)
+	// Enable pull-down resistor by clearing ODR0
+	GPIOC->ODR &= ~(1 << 0);
 
+
+	GPIOC->CRL &= ~(GPIO_CRL_MODE1 | GPIO_CRL_CNF1); // Clear the mode and CNF
+	GPIOC->CRL |= GPIO_CRL_MODE1_1 | GPIO_CRL_CNF1_0; // Set MODE1 to 3 (output)
 }
+
+void USB_OrientationDetection(void)
+{
+	/* PC0 pin for detecting usb c orientation. Not sure on functionality yet but it should either set or reset PC1 - DX_SEL
+
+	if PC0 is low (connected to GND) then set PC1 high (DX_SEL = 1)
+	if PC0 is high (connected to VBUS) then set PC1 low (DX_SEL = 0)
+	*/
+	if ((GPIOC->IDR & (1 << 0)) == 0)
+	{
+		//Port C 0th bit is 0
+		GPIOC->BSRR |= GPIO_BSRR_BS1;
+	}
+	else
+	{
+		//Port C 0th bit is 1
+		GPIOC->BSRR |= GPIO_BSRR_BR1;
+	}
+}
+
+
 
 void PowerControlPin_Init(void)
 {
@@ -270,6 +296,7 @@ void PowerControlPin_Init(void)
 
 static inline void Power_LatchOn(void) { GPIOA->BSRR = GPIO_BSRR_BR10; }
 static inline void Power_Release(void) { GPIOA->BSRR = GPIO_BSRR_BS10; }
+
 
 /**
   * @}
