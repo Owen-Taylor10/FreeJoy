@@ -786,6 +786,17 @@ static const dev_config_t init_config =
 
 void EnterBootloader (void);
 
+// User function prototypes
+void PowerControlPin_Init(void);
+static inline void Power_LatchOn(void);
+static inline void Power_Release(void);
+void USB_OrientationDetect_Init(void);
+typedef enum {
+	NONE,
+	LONG_PRESS
+} power_button_event_tTest; // This is only here to allow the function prototype
+void CheckPowerState(power_button_event_tTest* pwr_event, uint16_t powerOffDelayCounter);
+
 /* ########################## Assert Selection ############################## */
 /**
   * @brief Uncomment the line below to expanse the "assert_param" macro in the 

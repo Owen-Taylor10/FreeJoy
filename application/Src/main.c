@@ -36,7 +36,7 @@
 #include "usb_lib.h"
 #include "usb_pwr.h"
 
-#define DEBUG
+#define DEBUG // Comment out to disable debug LED
 
 /* Private variables ---------------------------------------------------------*/
 dev_config_t dev_config;
@@ -49,11 +49,6 @@ static void LED_Toggle(void);
 static void LED_Off(void);
 static void LED_On(void);
 #endif // DEBUG
-
-void PowerControlPin_Init(void);
-static inline void Power_LatchOn(void);
-static inline void Power_Release(void);
-void USB_OrientationDetect_Init(void);
 
 /**
   * @brief  The application entry point.
@@ -125,7 +120,7 @@ int main(void)
 		if PC0 is low (connected to GND) then set PC1 high (DX_SEL = 1)
 		if PC0 is high (connected to VBUS) then set PC1 low (DX_SEL = 0)
 		
-		*/
+	*/
 	
 	while (1)
 	{	
@@ -140,25 +135,7 @@ int main(void)
 
 		(powerOffDelayCounter >= PWR_OFF_DELAY_MS) ? (powerOffDelayCounter = PWR_OFF_DELAY_MS + 1) : (powerOffDelayCounter+=3);
 	
-		pwr_event = ButtonsDebounceProcessPowerBtn(&dev_config);		
-		switch (pwr_event) 
-		{
-			case PWR_BTN_EVENT_NONE:
-				break;
-			case PWR_BTN_EVENT_LONG_PRESS: // Turn off the power
-				if (powerOffDelayCounter <= PWR_OFF_DELAY_MS)
-				{
-					// do nothing
-				}
-				else
-				{
-					// Shut down functions...
-					Power_Release();
-				}
-			break;
-			default:
-				break;
-		}
+		CheckPowerState((power_button_event_tTest*) & pwr_event, powerOffDelayCounter);
 
 		ButtonsDebounceProcess(&dev_config);
 		ButtonsReadLogical(&dev_config);
@@ -297,6 +274,28 @@ void PowerControlPin_Init(void)
 static inline void Power_LatchOn(void) { GPIOA->BSRR = GPIO_BSRR_BR10; }
 static inline void Power_Release(void) { GPIOA->BSRR = GPIO_BSRR_BS10; }
 
+void CheckPowerState(power_button_event_tTest* pwr_event, uint16_t powerOffDelayCounter)
+{
+	*pwr_event = ButtonsDebounceProcessPowerBtn(&dev_config);
+	switch (*pwr_event)
+	{
+	case PWR_BTN_EVENT_NONE:
+		break;
+	case PWR_BTN_EVENT_LONG_PRESS: // Turn off the power
+		if (powerOffDelayCounter <= PWR_OFF_DELAY_MS)
+		{
+			// do nothing
+		}
+		else
+		{
+			// Shut down functions...
+			Power_Release();
+		}
+		break;
+	default:
+		break;
+	}
+}
 
 /**
   * @}
